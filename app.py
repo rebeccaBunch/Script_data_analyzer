@@ -39,7 +39,7 @@ script_file_name = get_script_file()
 # Si se ha introducido un nombre, crea en la carpeta encabezados un archivo con el nombre del guión más la fecha actual 
 if script_file_name:
     pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
-    sep = Scene_separator(" - ", " - ", " - ", " -- ", 
+    sep = Scene_separator(["-"], ["-"], ["-"], ["--"], 
                       ["ESC:", "SEC:", "ESCENA:", "ESCENA", "SECUENCIA:", "SECUENCIA"], 
                       ["INT", "EXT", "INT/EXT", "EXT/INT"], 
                       ["DÍA", "DIA", "AMANECER", "MAÑANA", "TARDE", "ATARDECER", "ANOCHECER", "NOCHE", "MADRUGADA", "OCASO", "MÁS TARDE", "ALBA", "TARDE/OCASO", "AL DÍA SIGUIENTE", "MOMENTOS DESPUÉS", "CONTINÚA"])
