@@ -1,4 +1,4 @@
-ESC: 
+ESC:
 SEC:
 ESCENA:
 ESCENA

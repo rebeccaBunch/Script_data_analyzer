@@ -91,9 +91,13 @@ class MyParser(Parser):
     def secuencia_de_texto(self, p):
         return p.TEXT
     
-    @_('SEPARADOR')
+    @_('IN_OUT_OPTIONS secuencia_de_texto')
     def secuencia_de_texto(self, p):
-        return ''
+        return f"{p.IN_OUT_OPTIONS}{p.secuencia_de_texto}"
+    
+    @_('NUMBER secuencia_de_texto')
+    def secuencia_de_texto(self, p):
+        return f"{p.NUMBER} {p.secuencia_de_texto}"
     
     @_('MOMENT_OPTIONS')
     def moment_options(self, p):
@@ -106,10 +110,7 @@ class MyParser(Parser):
 
     # Manejo de errores sintácticos
     def error(self, p):
-        if p:
-            print(f"Error de sintaxis en el token {p.type}, valor {p.value}")
-        else:
-            print("Error de sintaxis en el final de la entrada")
+        pass
 
 class Scene_separator(object):
     def __init__(self):
