@@ -41,7 +41,7 @@ if script_file_name:
     pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
     sep = Scene_separator(["-"], ["-"], ["-"], ["--"], 
                       ["ESC:", "SEC:", "ESCENA:", "ESCENA", "SECUENCIA:", "SECUENCIA"], 
-                      ["INT", "EXT", "INT/EXT", "EXT/INT"], 
+                      ["INT", "EXT", "INT./EXT", "EXT./INT"], 
                       ["DÍA", "DIA", "AMANECER", "MAÑANA", "TARDE", "ATARDECER", "ANOCHECER", "NOCHE", "MADRUGADA", "OCASO", "MÁS TARDE", "ALBA", "TARDE/OCASO", "AL DÍA SIGUIENTE", "MOMENTOS DESPUÉS", "CONTINÚA"])
     scenes = sep(pages_text)
     save_scenes_to_excel(scenes, script_file_name)
