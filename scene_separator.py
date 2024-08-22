@@ -2,18 +2,44 @@ from typing import Any
 import string
 from sly import Lexer, Parser
 
-Scene_options=""
-In_out_options=""
-Moment_options=""
+def read_scene():
+    # Abre el archivo en modo lectura
+    with open('Scene.txt', 'r') as archivo:
+        # Lee el contenido del archivo
+        a = archivo.read()
+    contenido = a.split('\n')
+    scene_options2 = sorted(contenido, key=len, reverse=True)
+    Scene2='|'.join(scene_options2)
+    return Scene2
+
+def read_in_out():
+    # Abre el archivo en modo lectura
+    with open('InOut.txt', 'r') as archivo:
+        # Lee el contenido del archivo
+        a = archivo.read()
+    contenido = a.split('\n')
+    In_out_option = sorted(contenido, key=len, reverse=True)
+    In_out2='|'.join(In_out_option)
+    return In_out2
+
+def read_moment():
+    # Abre el archivo en modo lectura
+    with open('Moment.txt', 'r') as archivo:
+        # Lee el contenido del archivo
+        a = archivo.read()
+    contenido = a.split('\n')
+    Moment_option = sorted(contenido, key=len, reverse=True)
+    Moment2='|'.join(Moment_option)
+    return Moment2
 
 class MyLexer(Lexer):
     tokens={SEPARADOR, SCENE_OPTIONS, IN_OUT_OPTIONS, MOMENT_OPTIONS, NUMBER,TEXT}
 
     ignore=' \t\n'
 
-    SCENE_OPTIONS=rf'{Scene_options}'
-    IN_OUT_OPTIONS = rf'{In_out_options}'
-    MOMENT_OPTIONS = rf'{Moment_options}'
+    SCENE_OPTIONS=rf'{read_scene()}'
+    IN_OUT_OPTIONS = rf'{read_in_out()}'
+    MOMENT_OPTIONS = rf'{read_moment()}'
     NUMBER = r'\d+'
     SEPARADOR = r'\-|\-\-|/|\.'
     TEXT = r'[^\s\n\t]+'
@@ -86,23 +112,9 @@ class MyParser(Parser):
             print("Error de sintaxis en el final de la entrada")
 
 class Scene_separator(object):
-    def __init__(self, scene_options, in_out_options, moment_options):
-
-        scene_options2 = sorted(scene_options, key=len, reverse=True)
-        in_out_options2 = sorted(in_out_options, key=len, reverse=True)
-        moment_options2 = sorted(moment_options, key=len, reverse=True)
-        global Scene_options
-        Scene_options='|'.join(scene_options2)
-        global In_out_options
-        In_out_options='|'.join(in_out_options2)
-        global Moment_options
-        Moment_options='|'.join(moment_options2)
-
+    def __init__(self):
         self.lexer = MyLexer()
         self.parser = MyParser()
-        self.Scene_options = scene_options
-        self.In_out_options = in_out_options
-        self.Moment_options = moment_options
   
     def __call__(self, script_text_per_page):
         scenes_headings = []
