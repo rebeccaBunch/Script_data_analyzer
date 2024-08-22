@@ -2,14 +2,11 @@ from typing import Any
 import string
 from sly import Lexer, Parser
 
+Scene_options=""
+In_out_options=""
+Moment_options=""
+
 class MyLexer(Lexer):
-
-    def __init__(self, scene_op,inoutop,momnent_op):
-        self.Scene_options=scene_op
-        self.In_out_options=inoutop
-        self.Moment_options=momnent_op
-
-
     tokens={SEPARADOR, SCENE_OPTIONS, IN_OUT_OPTIONS, MOMENT_OPTIONS, NUMBER,TEXT}
 
     ignore=' \t\n'
@@ -20,7 +17,6 @@ class MyLexer(Lexer):
     NUMBER = r'\d+'
     SEPARADOR = r'\-|\-\-|/|\.'
     TEXT = r'[^\s\n\t]+'
-    # TEXT = r'[a-zA-ZáéíóúñÁÉÍÓÚÑ0-9!@#$%^&*()_+=\[\]{};:\'",.<>/?\\|`~\-«»¿¡!]+'
 
 class MyParser(Parser):
     tokens = MyLexer.tokens
@@ -95,11 +91,14 @@ class Scene_separator(object):
         scene_options2 = sorted(scene_options, key=len, reverse=True)
         in_out_options2 = sorted(in_out_options, key=len, reverse=True)
         moment_options2 = sorted(moment_options, key=len, reverse=True)
-        Scene = '|'.join(scene_options2)
-        In_out = '|'.join(in_out_options2)
-        Moment = '|'.join(moment_options2)
+        global Scene_options
+        Scene_options='|'.join(scene_options2)
+        global In_out_options
+        In_out_options='|'.join(in_out_options2)
+        global Moment_options
+        Moment_options='|'.join(moment_options2)
 
-        self.lexer = MyLexer(Scene,In_out,Moment)
+        self.lexer = MyLexer()
         self.parser = MyParser()
         self.Scene_options = scene_options
         self.In_out_options = in_out_options
