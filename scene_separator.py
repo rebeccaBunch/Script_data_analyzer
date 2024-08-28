@@ -41,7 +41,7 @@ class MyLexer(Lexer):
     IN_OUT_OPTIONS = rf'{read_in_out()}'
     MOMENT_OPTIONS = rf'{read_moment()}'
     NUMBER = r'\d+'
-    SEPARADOR = r'\-|\-\-|/|\.'
+    SEPARADOR = r'\-|\-\-|\–|/|\.'
     TEXT = r'[^\s\n\t]+'
 
 class MyParser(Parser):
@@ -129,12 +129,12 @@ class Scene_separator(object):
             page_content = script_text_per_page[page]
             page_content = page_content.split('\n')
             for line in page_content:
-
-                result = self.parser.parse(self.lexer.tokenize(line.strip()))
+                a = line.strip()
+                result = self.parser.parse(self.lexer.tokenize(a))
                 if old_result is None:
                     if result is None:
                         past_line+=" "
-                        result2= self.parser.parse(self.lexer.tokenize(past_line+line.strip()))
+                        result2= self.parser.parse(self.lexer.tokenize(past_line+a))
                         if result2 is None:
                             past_line=line.strip()
                         else:
@@ -146,7 +146,7 @@ class Scene_separator(object):
                     continue
                 elif result is None:
                     past_line+=" "
-                    result3 = self.parser.parse(self.lexer.tokenize(past_line+line.strip()))
+                    result3 = self.parser.parse(self.lexer.tokenize(past_line+a))
                     if result3 is None:
                         text+= "\n"+ past_line.strip()
                         past_line=line.strip()

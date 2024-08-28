@@ -4,6 +4,7 @@
 # print(page.extract_text())
 from io import StringIO
 import os
+import time
 import pandas as pd
 
 from pdfminer.converter import TextConverter
@@ -86,8 +87,11 @@ def save_scenes_to_excel_with_characters(scenes, script_file_name, all_character
             else:
                 scene_data.append('')
         
+        characters_reasons= ""
         # Añade las razones por personaje
-        scene_data.append(scene.characters)
+        for key, value in scene.characters.items():
+            characters_reasons += key + ": " + value.context + ", "
+        scene_data.append(characters_reasons)
         
         data[f'Escena {i+1}'] = scene_data
 
@@ -107,16 +111,29 @@ def save_scenes_to_excel_with_characters(scenes, script_file_name, all_character
     # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
     df.to_excel(os.path.join(dir_path, excel_name))
 
-script_file_name = "Abuelas y Mazmorras - V3.1.pdf"
+# script_file_name = "Abuelas y Mazmorras - V3.1.pdf"
+script_file_name = "Supersticiones - D.B..pdf"
 # script_file_name = "Caída libre V2 - Daniel Burguet - Guion V.2.pdf"
 # script_file_name = "¡AHÍ VIENE ESOPO! - Piloto.pdf"
+start_time = time.time()
 pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
 sep = Scene_separator()
 scenes = sep(pages_text)
 extractor = CharacterExtractor()
-script_characters = extractor.extract_characters(scenes,11)
-extractor.set_continuity(scenes,11)
+result = 1
+while result:
+        # try:
+            script_characters = extractor.extract_characters(scenes,11)
+            extractor.set_continuity(scenes,11)
+            result = 0
+        # except:
+        #     print("Hubo un error con el LLM, por favor inténtelo de nuevo")
+end_time = time.time()
+
+execution_time = end_time - start_time
+print(f"Execution time: {execution_time} seconds")
 save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
+
 
 
 # Usage

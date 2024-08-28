@@ -43,8 +43,16 @@ if script_file_name:
     sep = Scene_separator()
     scenes = sep(pages_text)
     extractor = CharacterExtractor()
-    script_characters = extractor.extract_characters(scenes)
-    save_scenes_to_excel_with_characters(scenes, script_file_name)
+    result = 1
+    while result:
+        try:
+            script_characters = extractor.extract_characters(scenes,11)
+            extractor.set_continuity(scenes,11)
+            result = 0
+        except:
+            st.error("Hubo un error con el LLM, por favor inténtelo de nuevo")
+            
+    save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
 
 
 

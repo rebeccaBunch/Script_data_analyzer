@@ -318,6 +318,8 @@ class CharacterExtractor:
                         parts = line.split(': ')
                         characters_in_scene = set()
                         scene_number = int(parts[0].split()[1])
+                        if(scene_number > index):
+                            raise ValueError("Scene number exceeds the allowed limit!")
                         characters_info = parts[1].split('|')
                         if characters_info[len(characters_info)-1] == '':
                             characters_info.pop()
@@ -333,7 +335,7 @@ class CharacterExtractor:
                             else:
                                  scenes[scene_number-1].characters[character] = Character(1,reason)
         tmp = index - scene_amount_per_query
-        remainder = divmod(len(scenes), scene_amount_per_query)[0]
+        remainder = divmod(index, scene_amount_per_query)[1]
         if remainder:
             tmp = index - remainder
         while tmp < index:
@@ -390,7 +392,7 @@ class CharacterExtractor:
                             else:
                                 scenes[scene_number - 1].continuity[element] = 1
         tmp = index - scene_amount_per_query
-        remainder = divmod(len(scenes), scene_amount_per_query)[0]
+        remainder = divmod(index, scene_amount_per_query)[1]
         if remainder:
             tmp = index - remainder
         while tmp < index:
