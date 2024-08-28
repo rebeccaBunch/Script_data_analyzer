@@ -41,7 +41,7 @@ class MyLexer(Lexer):
     IN_OUT_OPTIONS = rf'{read_in_out()}'
     MOMENT_OPTIONS = rf'{read_moment()}'
     NUMBER = r'\d+'
-    SEPARADOR = r'\-|\-\-|\–|/|\.'
+    SEPARADOR = r'\-|\-\-|/|\.|\–|\–\–'
     TEXT = r'[^\s\n\t]+'
 
 class MyParser(Parser):
@@ -87,9 +87,9 @@ class MyParser(Parser):
     def secuencia_de_texto(self, p):
         return f"{p.TEXT} {p.secuencia_de_texto}"
 
-    @_('TEXT SEPARADOR')
+    @_('SEPARADOR')
     def secuencia_de_texto(self, p):
-        return p.TEXT
+        return ""
     
     @_('IN_OUT_OPTIONS secuencia_de_texto')
     def secuencia_de_texto(self, p):
@@ -98,6 +98,7 @@ class MyParser(Parser):
     @_('NUMBER secuencia_de_texto')
     def secuencia_de_texto(self, p):
         return f"{p.NUMBER} {p.secuencia_de_texto}"
+    
     
     @_('MOMENT_OPTIONS')
     def moment_options(self, p):
