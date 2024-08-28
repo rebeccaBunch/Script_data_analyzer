@@ -13,6 +13,9 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfparser import PDFParser
 
+from LLM_use import CharacterExtractor
+from scene_separator import Scene_separator
+
 def pdf_extract_text_per_page(pdf_file):
     output_dict = {}
     with open(pdf_file, 'rb') as in_file:
@@ -54,6 +57,68 @@ def save_scenes_to_excel(scenes, script_file_name):
     excel_name = script_file_name + '.xlsx'
     # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
     df.to_excel(os.path.join(dir_path, excel_name))
+
+
+def save_scenes_to_excel_with_characters(scenes, script_file_name, all_characters):
+    """
+    Toma una lista de objetos Scene y guarda sus atributos en un archivo Excel.
+    Cada columna del archivo Excel representa una instancia de Scene y las filas corresponden a los atributos de la clase Scene.
+    """
+    # Crea un diccionario para almacenar los datos de las escenas
+    data = {}
+
+    # Recorre la lista de escenas
+    for i, scene in enumerate(scenes):
+        # Añade los atributos de la escena al diccionario
+        previous = 'X'
+        following = 'X'
+        if scene.continuity["previous"]:
+            previous = ", ".join(scene.continuity["previous"])
+        if scene.continuity["following"]:
+            following = ", ".join(scene.continuity["following"])
+        continuity =  previous + " - " + following
+        scene_data = [scene.number, scene.in_out, scene.place, scene.moment, scene.time, scene.page, continuity]
+        
+        # Añade una 'X' para los personajes que están en la escena
+        for character in all_characters:
+            if any(char == character for char in scene.characters.keys()):
+                scene_data.append('X')
+            else:
+                scene_data.append('')
+        
+        # Añade las razones por personaje
+        scene_data.append(scene.characters)
+        
+        data[f'Escena {i+1}'] = scene_data
+
+    # Crea un DataFrame de pandas a partir del diccionario
+    index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE']
+    df = pd.DataFrame(data, index=index)
+
+    # Define la ruta del directorio
+    dir_path = 'encabezados'
+
+    # Comprueba si el directorio existe
+    if not os.path.exists(dir_path):
+        # Si no existe, crea el directorio
+        os.makedirs(dir_path)
+
+    excel_name = script_file_name + '.xlsx'
+    # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
+    df.to_excel(os.path.join(dir_path, excel_name))
+
+script_file_name = "Abuelas y Mazmorras - V3.1.pdf"
+# script_file_name = "Caída libre V2 - Daniel Burguet - Guion V.2.pdf"
+# script_file_name = "¡AHÍ VIENE ESOPO! - Piloto.pdf"
+pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
+sep = Scene_separator()
+scenes = sep(pages_text)
+extractor = CharacterExtractor()
+script_characters = extractor.extract_characters(scenes,11)
+extractor.set_continuity(scenes,11)
+save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
+
+
 # Usage
 # pages_text = pdf_extract_text_per_page('Roma-Screenplay-SPANISH.pdf')
 # sep = Scene_separator(" ", ". ", ". ", " - ", 

@@ -9,7 +9,8 @@ from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 from streamlit.runtime import get_instance
 
 
-from data_extractor import pdf_extract_text_per_page, save_scenes_to_excel
+from LLM_use import CharacterExtractor
+from data_extractor import pdf_extract_text_per_page, save_scenes_to_excel, save_scenes_to_excel_with_characters
 from scene_separator import Scene_separator
 
 def get_script_file():
@@ -41,7 +42,9 @@ if script_file_name:
     pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
     sep = Scene_separator()
     scenes = sep(pages_text)
-    save_scenes_to_excel(scenes, script_file_name)
+    extractor = CharacterExtractor()
+    script_characters = extractor.extract_characters(scenes)
+    save_scenes_to_excel_with_characters(scenes, script_file_name)
 
 
 

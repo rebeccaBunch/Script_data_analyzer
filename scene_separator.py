@@ -24,7 +24,7 @@ def read_in_out():
 
 def read_moment():
     # Abre el archivo en modo lectura
-    with open('Moment.txt', 'r') as archivo:
+    with open('Moment.txt', 'r', encoding='utf-8') as archivo:
         # Lee el contenido del archivo
         a = archivo.read()
     contenido = a.split('\n')
@@ -152,9 +152,9 @@ class Scene_separator(object):
                         past_line=line.strip()
                     else:
                         if old_result[1] is None:
-                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,None,None,text.strip()))
+                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
                         else:
-                            scenes_headings.append(Scene(old_result[1],old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,None,None,text.strip()))
+                            scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
                         past_line=""
                         text=""
                         old_result=result3
@@ -162,9 +162,9 @@ class Scene_separator(object):
                 else:
                     text+= "\n"+ past_line.strip()
                     if old_result[1] is None:
-                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,None,None,text.strip()))
+                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
                     else:
-                        scenes_headings.append(Scene(old_result[1],old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,None,None,text.strip()))
+                        scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page, text=text.strip()))
                     past_line=""
                     text=""
                     old_result=result
@@ -172,9 +172,9 @@ class Scene_separator(object):
         if old_result != None:
             text+= "\n"+past_line.strip()
             if old_result[1] is None:
-                scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,None,None,text.strip()))
+                scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
             else:
-                scenes_headings.append(Scene(old_result[1],old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,None,None,text.strip()))
+                scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
 
         return scenes_headings
     
@@ -186,13 +186,13 @@ class Scene_separator(object):
         return (minutes, seconds)
 
 class Scene(object):
-    def __init__(self, number, in_out, place, moment, time, page,characters,continuity,text):
+    def __init__(self, number, in_out, place, moment, time, page, characters=None, continuity=None, text=""):
         self.number = number
         self.in_out = in_out
         self.place = place
         self.moment = moment
         self.time = time
         self.page = page
-        self.characters=characters
-        self.continuity=continuity
-        self.text=text
+        self.characters = characters if characters is not None else {}
+        self.continuity = continuity if continuity is not None else {}
+        self.text = text
