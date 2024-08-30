@@ -1,5 +1,3 @@
-google-generativeai
-google-api-core
 pandas==2.2.2
 pdfminer.six==20231228
 protobuf==5.28.0
