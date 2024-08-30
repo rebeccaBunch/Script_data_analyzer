@@ -3,8 +3,6 @@ import time
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 from dotenv import load_dotenv
-import numpy as np
-from collections import Counter, defaultdict
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from scene_separator import Scene
@@ -126,8 +124,7 @@ system_instructions_per_scene_character_query = """
 
                                                 """
 
-system_instructions_continuity = """El análisis que realices del contenido de una escena solo es con el fin de hacer un resumen de la misma con propósitos académicos.
-                                    Entre una escena a y otra b hay continuidad si existe al menos un personaje en b tal que la acción que realiza en la escena a ocurre directamente después de la b. Esta información se utiliza para saber que el personaje debe permanecer con el mismo aspecto físico, es decir, que no ha tenido oportunidad de cambiarse de ropa o peinado. Por lo tanto, si un personaje está en una situación en la que no puede cambiar su aspecto, por ejemplo, está durmiendo o encerrado, habrá continuidad en las escenas.
+system_instructions_continuity = """Entre una escena a y otra b hay continuidad si existe al menos un personaje en b tal que la acción que realiza en la escena a ocurre directamente después de la b. Esta información se utiliza para saber que el personaje debe permanecer con el mismo aspecto físico, es decir, que no ha tenido oportunidad de cambiarse de ropa o peinado. Por lo tanto, si un personaje está en una situación en la que no puede cambiar su aspecto, por ejemplo, está durmiendo o encerrado, habrá continuidad en las escenas.
                                     Luego, la continuidad se obtiene por personajes. Si en la escena 1 ocurre algo con personaje 1 y en la escena 2 ocurre algo con personaje 2 y luego en la escena 3 ocurre algo con personaje 1 y personaje 2 tal que se entiende que entre las acciones de escena 1 y escena 2 con las de escena 3 los personajes no deben haberse cambiado de ropa, entonces en la escena 3 hay continuidad de escena1 por personaje 1 y de escena 2 por personaje 2.
                                     El conjunto de escenas de las que se viene solo contendrá escenas con un número menor al de la escena actual poruqe se entiende que la actual ocurrió después. El conjunto de escenas a las que se va solo puede contener escenas con un número mayor al de la escena actual.
                                     Sería incorrecto poner que una escena tiene en el conjunto de escenas a las que va a otra y que esta otra no tenga en el conjunto de escenas de las que viene a la mencionada anteriormente. Recuerda que son conjuntos para que sea posible ppner más de una escena en cada caso.
@@ -157,7 +154,10 @@ instructions_characters = """Recibirás un guion con sus escenas y devolverás l
                             Solo se considera como personaje un nombre, no siendo personajes ninguna secuencia de palabras que se refiera a un grupo.
                             Si un personaje solo está en la escena porque habla por teléfono, porque se oye su voz o un sonido proveniente de la persona, entonces a menos que en la escena se haga referencia a la apariencia del personaje o a algún gesto que hace, esa persona no se considera un personaje.
                             Esto se debe a que para oír u oler algo no se necesita verlo, luego no tiene que aparecer físicamente en la escena. Es muy importante que todo personaje que hable en una escena fuera de una conversación por teléfono se incluya como personaje.
+                            Si un personaje de la escena ejecuta una acción sobre otro personaje y para esta acción necesita ver al otro personaje entonces este otro personaje está en la escena también. 
                             En español los verbos pueden estar en varios lugares de una oración. Por ejemplo: "Cantaron Pedro y Cynthia le canción del matutino."
+                            En español para indicar la persona a la que se le hace una acción se suele usar el formato: acción + preposición + "persona x". Por ejemplo: Pablito le está abrazando los brazos a su madre. Acción: está abrazando preposición: a persona x: su madre. Como para ejecutar la acción es necesario que se vea la madre entonces también es un personaje. Otro ejemplo es: "Gaby se quedó boquiabierta con ese animal tan hermoso. El perro de Cinthia era blanco. Estaba siendo paseado por Cinthia en el parque." En este ejemplo los personajes son Gaby y Cinthia.
+                            Preposiciones del idioma español: a,ante,bajo, con, contra, de, desde, en, entre, hacia, hasta, para, por, según, sin, sobre, tras.
                             Los animales u objetos inanimados como juguetes, muebles, etc, no se consideran personajes. Solo se considerarán personajes si hablan.
                             Si en la escena hay varios personajes interactuando entre ellos y en una parte dicen un diálogo a coro, puede que se refieran a los personajes como el grupo o las x, donde x es la cantidad de personas en el grupo. En este caso es bueno notar que no se refieren a otros personajes, sino al propio grupo.
                             Ejemplo 1:
@@ -202,6 +202,14 @@ instructions_characters = """Recibirás un guion con sus escenas y devolverás l
                             La respuesta que me debes dar en este caso es:
                             Escena 1: Juan - está en la galería | Claudia - está en la galería | Patricia - mira los cuadros
                             Nota: Hugo hace un sonido pero no se referencia su apariencia ni gestos, ni aparece un diálogo dicho por él, luego no se considera un personaje de esta escena. Pasa algo parecido con Ramona, que está cocinando en alguna parte porque se siente el olor de su platillo, pero no la vemos en la escena.
+                            Ejemplo 5:
+                            Número de escena: 1 Interior/Exterior: Int Lugar: Galería Momento: Medianoche Contenido: Alicia está caminando por un bosque. Escucha la voz del gato de Cheshire y mira alrededor pero no lo ve. Sus ojos se encuentran con varias habitaciones hasta que una llama su atención. En ella ve a la liebre peinando a la reina de corazones.
+                            LIEBRE
+                            Bienvenida, Alicia
+                            Fin de escena
+                            La respuesta que me debes dar en este caso es:
+                            Escena 1: Alicia - camina por el bosque| Liebre - peina a reina | reina de corazones - es peinada por liebre
+                            Nota: El gato de Cheshire no se incluye porque Alicia solo lo oye, luego no hay mención de que se vea en la escena. La reina se incluye porque la liebre que es un personaje está peinándola, acción que requiere ver a la reina. Si la acción fuera hablar por teléfono por ejemplo no sería necesario incluir a la reina en la escena.
                             """
 
 class Character(object):
@@ -243,6 +251,53 @@ class CharacterExtractor:
         ).start_chat(history=[])
 
 
+
+    def send_message(self, text, retry_count=0):
+        # Get the characters from Gemini AI
+        try:
+            response = self.chat.send_message(text)
+            return response.text.strip() if response else None
+        except genai.types.BlockedPromptException as e:
+            # Handle exception if the request is blocked
+            print(f"The prompt was blocked: {e}")
+            return None
+        except ResourceExhausted as e:
+            # Retry if resource limit is reached
+            if retry_count < MAX_RETRIES:
+                time.sleep(2 ** retry_count)  # Implement exponential backoff
+                return self.send_message(text, retry_count + 1)
+            else:
+                raise e
+
+
+    def get_responses(self, text,query_amount,instructions,seconds_to_wait):
+        responses = []
+        while not responses:
+            for _ in range(query_amount):
+                self.start_new_chat(instructions)
+                responses.append(self.send_message(text))
+                time.sleep(seconds_to_wait)
+        return responses
+        
+    def process_scenes (self, text, query_amount, scenes,last_scene):
+        responses = self.get_responses(text, query_amount,instructions_characters,0)
+        bad_responses = self.aggregate_results_to_scene_characters(responses, scenes, last_scene)
+        if bad_responses:
+            self.process_scenes(text, bad_responses, scenes, last_scene)
+
+
+    def filter_best_answers(self,scenes,last_scene, query_amount,script_characters):
+        current_scene = last_scene - scene_amount_per_query
+        remainder = divmod(last_scene, scene_amount_per_query)[1]
+        if remainder:
+            current_scene = last_scene - remainder
+        while current_scene < last_scene:
+            filtered_dict = {key: value for key, value in scenes[current_scene].characters.items() if value.count >= (query_amount/2)}
+            scenes[current_scene].characters = filtered_dict
+            for character in list(scenes[current_scene].characters.keys()):
+                script_characters.add(character)
+            current_scene+=1
+
     def extract_characters(self, scenes, query_amount):
         script_characters = set()
         # Extract characters from the text using Gemini AI and return them
@@ -278,48 +333,29 @@ class CharacterExtractor:
             while i<count*scene_amount_per_query and (i < len(scenes)):
                 text += f'Número de escena: {scenes[i].number} Interior/Exterior: {scenes[i].in_out} Lugar: {scenes[i].place} Momento: {scenes[i].moment} Contenido: {scenes[i].text} Fin de escena {scenes[i].number}\n'
                 i+=1
-            characters_responses = []
-            for _ in range(query_amount):
+            self.process_scenes(text, query_amount,scenes, i)
+            self.filter_best_answers(scenes, i,query_amount,script_characters)# actualiza personajes de escenas y del guion
 
-                self.start_new_chat(instructions_characters)
-                characters_responses.append(self.send_message(text))
-            
-            # time.sleep(30)
-            if characters_responses:
-                script_characters = self.aggregate_results(characters_responses,scenes, query_amount,i, script_characters)
-    
         return script_characters
 
-        
-    def send_message(self, text, retry_count=0):
-        # Get the characters from Gemini AI
-        try:
-            response = self.chat.send_message(text)
-            return response.text.strip() if response else None
-        except genai.types.BlockedPromptException as e:
-            # Handle exception if the request is blocked
-            print(f"The prompt was blocked: {e}")
-            return None
-        except ResourceExhausted as e:
-            # Retry if resource limit is reached
-            if retry_count < MAX_RETRIES:
-                time.sleep(2 ** retry_count)  # Implement exponential backoff
-                return self.send_message(text, retry_count + 1)
-            else:
-                raise e
 
-    def aggregate_results(self, responses, scenes, query_amount, index, script_characters):
+    def aggregate_results_to_scene_characters(self, responses, scenes, last_scene):
 
         # Process each response
+        # if scene_number exceeds the last_scene then the model allucinated, therefore that response must be asked for again
+        bad_responses = 0
+        response_is_bad = 0
         for response in responses:
+            response_is_bad = 0
             if response:
                 for line in response.split('\n'):
                     if line.startswith('Escena'):
                         parts = line.split(': ')
-                        characters_in_scene = set()
                         scene_number = int(parts[0].split()[1])
-                        if(scene_number > index):
-                            raise ValueError("Scene number exceeds the allowed limit!")
+                        if(scene_number > last_scene):
+                            bad_responses+=1
+                            response_is_bad = 1
+                            break
                         characters_info = parts[1].split('|')
                         if characters_info[len(characters_info)-1] == '':
                             characters_info.pop()
@@ -329,23 +365,16 @@ class CharacterExtractor:
                                 character = char_parts[0].strip()
                                 reason = char_parts[1].strip()
                             except:
-                                continue
+                                bad_responses+=1
+                                response_is_bad = 1
+                                break
                             if character in scenes[scene_number-1].characters.keys():
                                 scenes[scene_number-1].characters[character].count +=1
                             else:
                                  scenes[scene_number-1].characters[character] = Character(1,reason)
-        tmp = index - scene_amount_per_query
-        remainder = divmod(index, scene_amount_per_query)[1]
-        if remainder:
-            tmp = index - remainder
-        while tmp < index:
-            filtered_dict = {key: value for key, value in scenes[tmp].characters.items() if value.count >= (query_amount/2)}
-            scenes[tmp].characters = filtered_dict
-            for character in list(scenes[tmp].characters.keys()):
-                script_characters.add(character)
-            tmp+=1
-
-        return script_characters
+                        if response_is_bad:
+                            break
+        return bad_responses
 
     def set_continuity(self, scenes, query_amount):
         i = 0
@@ -356,25 +385,30 @@ class CharacterExtractor:
             while i<count*scene_amount_per_query and (i < len(scenes)):
                 text += f'Escena {scenes[i].number} {scenes[i].in_out} {scenes[i].place} {scenes[i].moment} Personajes:{scenes[i].characters} Contenido: {scenes[i].text}\n'
                 i+=1
-            continuity_responses = []
-            while not continuity_responses:
-                for _ in range(query_amount):
+            self.process_continuity(query_amount,text,scenes,i)
+            self.filter_best_continuity_answers(i, query_amount,scenes)
 
-                    self.start_new_chat(system_instructions_continuity)
-                    continuity_responses.append(self.send_message(text))
-            
-                time.sleep(10)
-            self.process_continuity_results(continuity_responses, scenes, i, query_amount)
+    def process_continuity(self, query_amount, text, scenes,last_scene):
+        responses = self.get_responses(text,query_amount,system_instructions_continuity,10)
+        bad_responses = self.aggregate_results_to_scene_continuity(responses,scenes,last_scene)
+        if bad_responses:
+            self.process_continuity(bad_responses,text,scenes,last_scene)
     
-    def process_continuity_results(self, responses, scenes, index, query_amount):
+    def aggregate_results_to_scene_continuity(self, responses, scenes, last_scene):
         # Process each response
+        bad_responses = 0
         for response in responses:
+            response_is_bad = 0
             if response:
                 for line in response.split('\n'):
                     if line.startswith('Escena'):
                         continuity_per_character = set()
                         parts = line.split(': ')
                         scene_number = int(parts[0].split()[1])
+                        if(scene_number > last_scene):
+                            bad_responses+=1
+                            response_is_bad = 1
+                            break
                         characters_info = parts[1].split('|')
                         if characters_info[len(characters_info)-1] == '':
                             characters_info.pop()
@@ -385,32 +419,38 @@ class CharacterExtractor:
                                 continuity_per_character.add(continuity[0].strip())
                                 continuity_per_character.add(continuity[1].strip())
                             except:
-                                continue
+                                bad_responses+=1
+                                response_is_bad = 1
+                                break
+                        if response_is_bad:
+                            break
                         for element in continuity_per_character:
                             if element in scenes[scene_number - 1].continuity.keys():
                                 scenes[scene_number - 1].continuity[element] +=1
                             else:
                                 scenes[scene_number - 1].continuity[element] = 1
-        tmp = index - scene_amount_per_query
-        remainder = divmod(index, scene_amount_per_query)[1]
+    
+    def filter_best_continuity_answers(self,last_scene, query_amount, scenes):
+        index = last_scene - scene_amount_per_query
+        remainder = divmod(last_scene, scene_amount_per_query)[1]
         if remainder:
-            tmp = index - remainder
-        while tmp < index:
+            index = last_scene - remainder
+        while index < last_scene:
             # Initialize your dictionaries
             dict = {
                     "previous": [],
                     "following": []
                     }
             # Iterate through the continuity dictionary
-            for key, value in scenes[tmp].continuity.items():
+            for key, value in scenes[index].continuity.items():
                 a = query_amount/2
                 if value > query_amount/2:
-                    if (key.isdigit() and int(key) < (scenes[tmp].number)):
+                    if (key.isdigit() and int(key) < (scenes[index].number)):
                          dict["previous"].append(key)
-                    elif (key.isdigit() and int(key) > (scenes[tmp].number)):
+                    elif (key.isdigit() and int(key) > (scenes[index].number)):
                         dict["following"].append(key)
-            scenes[tmp].continuity = dict
-            tmp+=1
+            scenes[index].continuity = dict
+            index+=1
 
 
 

@@ -4,7 +4,6 @@
 # print(page.extract_text())
 from io import StringIO
 import os
-import time
 import pandas as pd
 
 from pdfminer.converter import TextConverter
@@ -19,16 +18,16 @@ from scene_separator import Scene_separator
 
 def pdf_extract_text_per_page(pdf_file):
     output_dict = {}
-    with open(pdf_file, 'rb') as in_file:
-        parser = PDFParser(in_file)
-        doc = PDFDocument(parser)
-        rsrcmgr = PDFResourceManager()
-        for i, page in enumerate(PDFPage.create_pages(doc)):
-            output_string = StringIO()
-            device = TextConverter(rsrcmgr, output_string, laparams=LAParams())
-            interpreter = PDFPageInterpreter(rsrcmgr, device)
-            interpreter.process_page(page)
-            output_dict[i] = output_string.getvalue()
+    #with open(pdf_file, 'rb') as file:
+    parser = PDFParser(pdf_file)
+    doc = PDFDocument(parser)
+    rsrcmgr = PDFResourceManager()
+    for i, page in enumerate(PDFPage.create_pages(doc)):
+        output_string = StringIO()
+        device = TextConverter(rsrcmgr, output_string, laparams=LAParams())
+        interpreter = PDFPageInterpreter(rsrcmgr, device)
+        interpreter.process_page(page)
+        output_dict[i] = output_string.getvalue()
     return output_dict
 
 def save_scenes_to_excel(scenes, script_file_name):
@@ -59,8 +58,10 @@ def save_scenes_to_excel(scenes, script_file_name):
     # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
     df.to_excel(os.path.join(dir_path, excel_name))
 
+########################################
+####3Chat gpt##########################
 
-def save_scenes_to_excel_with_characters(scenes, script_file_name, all_characters):
+def save_scenes_to_excel_with_characters(scenes, script_file_name, all_characters, buffer):
     """
     Toma una lista de objetos Scene y guarda sus atributos en un archivo Excel.
     Cada columna del archivo Excel representa una instancia de Scene y las filas corresponden a los atributos de la clase Scene.
@@ -99,40 +100,89 @@ def save_scenes_to_excel_with_characters(scenes, script_file_name, all_character
     index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE']
     df = pd.DataFrame(data, index=index)
 
-    # Define la ruta del directorio
-    dir_path = 'encabezados'
+    # Guarda el DataFrame en un archivo Excel en memoria
+    df.to_excel(buffer, index=True)
 
-    # Comprueba si el directorio existe
-    if not os.path.exists(dir_path):
-        # Si no existe, crea el directorio
-        os.makedirs(dir_path)
 
-    excel_name = script_file_name + '.xlsx'
-    # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
-    df.to_excel(os.path.join(dir_path, excel_name))
+
+
+
+
+
+
+# def save_scenes_to_excel_with_characters(scenes, script_file_name, all_characters):
+#     """
+#     Toma una lista de objetos Scene y guarda sus atributos en un archivo Excel.
+#     Cada columna del archivo Excel representa una instancia de Scene y las filas corresponden a los atributos de la clase Scene.
+#     """
+#     # Crea un diccionario para almacenar los datos de las escenas
+#     data = {}
+
+#     # Recorre la lista de escenas
+#     for i, scene in enumerate(scenes):
+#         # Añade los atributos de la escena al diccionario
+#         previous = 'X'
+#         following = 'X'
+#         if scene.continuity["previous"]:
+#             previous = ", ".join(scene.continuity["previous"])
+#         if scene.continuity["following"]:
+#             following = ", ".join(scene.continuity["following"])
+#         continuity =  previous + " - " + following
+#         scene_data = [scene.number, scene.in_out, scene.place, scene.moment, scene.time, scene.page, continuity]
+        
+#         # Añade una 'X' para los personajes que están en la escena
+#         for character in all_characters:
+#             if any(char == character for char in scene.characters.keys()):
+#                 scene_data.append('X')
+#             else:
+#                 scene_data.append('')
+        
+#         characters_reasons= ""
+#         # Añade las razones por personaje
+#         for key, value in scene.characters.items():
+#             characters_reasons += key + ": " + value.context + ", "
+#         scene_data.append(characters_reasons)
+        
+#         data[f'Escena {i+1}'] = scene_data
+
+#     # Crea un DataFrame de pandas a partir del diccionario
+#     index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE']
+#     df = pd.DataFrame(data, index=index)
+
+#     # Define la ruta del directorio
+#     dir_path = 'encabezados'
+
+#     # Comprueba si el directorio existe
+#     if not os.path.exists(dir_path):
+#         # Si no existe, crea el directorio
+#         os.makedirs(dir_path)
+
+#     excel_name = script_file_name + '.xlsx'
+#     # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
+#     df.to_excel(os.path.join(dir_path, excel_name))
 
 # script_file_name = "Abuelas y Mazmorras - V3.1.pdf"
-script_file_name = "Supersticiones - D.B..pdf"
+# script_file_name = "Supersticiones - D.B..pdf"
 # script_file_name = "Caída libre V2 - Daniel Burguet - Guion V.2.pdf"
 # script_file_name = "¡AHÍ VIENE ESOPO! - Piloto.pdf"
-start_time = time.time()
-pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
-sep = Scene_separator()
-scenes = sep(pages_text)
-extractor = CharacterExtractor()
-result = 1
-while result:
-        # try:
-            script_characters = extractor.extract_characters(scenes,11)
-            extractor.set_continuity(scenes,11)
-            result = 0
-        # except:
-        #     print("Hubo un error con el LLM, por favor inténtelo de nuevo")
-end_time = time.time()
+# start_time = time.time()
+# pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
+# sep = Scene_separator()
+# scenes = sep(pages_text)
+# extractor = CharacterExtractor()
+# result = 1
+# while result:
+#         # try:
+#             script_characters = extractor.extract_characters(scenes,11)
+#             extractor.set_continuity(scenes,11)
+#             result = 0
+#         # except:
+#         #     print("Hubo un error con el LLM, por favor inténtelo de nuevo")
+# end_time = time.time()
 
-execution_time = end_time - start_time
-print(f"Execution time: {execution_time} seconds")
-save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
+# execution_time = end_time - start_time
+# print(f"Execution time: {execution_time} seconds")
+# save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
 
 
 
