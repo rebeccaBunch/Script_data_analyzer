@@ -78,8 +78,8 @@ def process_script_file(uploaded_file):
                 script_characters = extractor.extract_characters(scenes, 11)
                 extractor.set_continuity(scenes, 11)
                 result = 0
-        except:
-              st.error("Hubo un error con el LLM, por favor revise la vpn")
+            except:
+                  st.error("Hubo un error con el LLM, por favor revise la vpn")
     
     # Save the scenes to an Excel file in memory
     excel_buffer = BytesIO()
