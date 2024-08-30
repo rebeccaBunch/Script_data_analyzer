@@ -74,7 +74,7 @@ def process_script_file(uploaded_file):
                 extractor = CharacterExtractor(key)
                 script_characters = extractor.extract_characters(scenes, 11)
                 extractor.set_continuity(scenes, 11)
-          except Esception as e:
+          except Exception as e:
                   st.error(f"{e}")
     
     # Save the scenes to an Excel file in memory
