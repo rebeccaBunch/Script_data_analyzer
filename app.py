@@ -64,18 +64,16 @@ def process_script_file(uploaded_file):
     sep = Scene_separator()
     scenes = sep(pages_text)
     try:
-            key = st.secrets["api_key"]["gemini_api_key1"]
+            key = st.secrets["api_keys"]["gemini_api_key1"]
             extractor = CharacterExtractor(key)
             script_characters = extractor.extract_characters(scenes, 11)
             extractor.set_continuity(scenes, 11)
     except:
-          try:
-                key = st.secrets["api_key"]["gemini_api_key2"]
+                key = st.secrets["api_keys"]["gemini_api_key2"]
                 extractor = CharacterExtractor(key)
                 script_characters = extractor.extract_characters(scenes, 11)
                 extractor.set_continuity(scenes, 11)
-          except Exception as e:
-                  st.error(f"{e}")
+
     
     # Save the scenes to an Excel file in memory
     excel_buffer = BytesIO()
