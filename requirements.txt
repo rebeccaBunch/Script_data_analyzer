@@ -1,4 +1,6 @@
-google-generativeai
-google-api-core
-python-dotenv
-pdfminer.six
+pandas==2.2.2
+pdfminer.six==20231228
+protobuf==5.28.0
+python-dotenv==1.0.1
+sly==0.5
+streamlit==1.38.0

@@ -63,15 +63,19 @@ def process_script_file(uploaded_file):
     pages_text = pdf_extract_text_per_page(BytesIO(file_content))
     sep = Scene_separator()
     scenes = sep(pages_text)
-    extractor = CharacterExtractor()
-    result = 1
-    while result:
-        try:
+    try:
+            key = st.secrets["api_key"]["gemini_api_key1"]
+            extractor = CharacterExtractor(key)
             script_characters = extractor.extract_characters(scenes, 11)
             extractor.set_continuity(scenes, 11)
-            result = 0
-        except:
-            st.error("Hubo un error con el LLM, por favor cambie el api key o revise la vpn")
+    except:
+          try:
+                key = st.secrets["api_key"]["gemini_api_key2"]
+                extractor = CharacterExtractor(key)
+                script_characters = extractor.extract_characters(scenes, 11)
+                extractor.set_continuity(scenes, 11)
+          except:
+                  st.error("Hubo un error con el LLM, por favor revise la vpn")
     
     # Save the scenes to an Excel file in memory
     excel_buffer = BytesIO()
