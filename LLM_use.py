@@ -224,12 +224,12 @@ class Character(object):
 MAX_RETRIES = 5  # Maximum number of attempts for the Gemini API
 
 class CharacterExtractor:
-    def __init__(self, config_file='.env'):
+    def __init__(self, key):
         # Load environment variables from the .env file
-        load_dotenv(config_file)
+        # load_dotenv(config_file)
 
         # Configure Gemini AI API using the API key
-        self.api_key = os.environ['GENAI_API_KEY']
+        self.api_key = key
         genai.configure(api_key=self.api_key)
         
     def start_new_chat(self, system_instruction):
