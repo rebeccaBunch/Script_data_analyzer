@@ -68,13 +68,13 @@ def process_script_file(uploaded_file):
             extractor = CharacterExtractor(key)
             script_characters = extractor.extract_characters(scenes, 11)
             extractor.set_continuity(scenes, 11)
-     except:
-     try:
+    except:
+          try:
                 key = st.secrets["api_key"]["gemini_api_key2"]
                 extractor = CharacterExtractor(key)
                 script_characters = extractor.extract_characters(scenes, 11)
                 extractor.set_continuity(scenes, 11)
-     except:
+          except:
                   st.error("Hubo un error con el LLM, por favor revise la vpn")
     
     # Save the scenes to an Excel file in memory
