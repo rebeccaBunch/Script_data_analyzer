@@ -1,5 +1,4 @@
-from typing import Any
-import string
+
 from sly import Lexer, Parser
 
 def read_scene():
