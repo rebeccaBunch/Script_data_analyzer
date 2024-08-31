@@ -125,7 +125,7 @@ class Scene_separator(object):
         old_result=None
         last_page=None
         for page in script_text_per_page.keys():
-            last_page=page
+            # last_page=page
             page_content = script_text_per_page[page]
             page_content = page_content.split('\n')
             for line in page_content:
@@ -140,9 +140,11 @@ class Scene_separator(object):
                         else:
                             old_result=result2
                             past_line=""
+                            last_page=page
                     else:
                         old_result=result
                         past_line=""
+                        last_page=page
                     continue
                 elif result is None:
                     past_line+=" "
@@ -152,23 +154,25 @@ class Scene_separator(object):
                         past_line=line.strip()
                     else:
                         if old_result[1] is None:
-                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
+                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
                         else:
-                            scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
+                            scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
                         past_line=""
                         text=""
                         old_result=result3
                         index_scene+=1
+                        last_page=page
                 else:
                     text+= "\n"+ past_line.strip()
                     if old_result[1] is None:
-                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page,text=text.strip()))
+                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
                     else:
-                        scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),page, text=text.strip()))
+                        scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page, text=text.strip()))
                     past_line=""
                     text=""
                     old_result=result
                     index_scene+=1
+                    last_page=page
         if old_result != None:
             text+= "\n"+past_line.strip()
             if old_result[1] is None:
@@ -180,10 +184,11 @@ class Scene_separator(object):
     
 
     @staticmethod
-    def calculate_time(char_count):
+    def calculate_time(caracter_count):
         # quotient, remainder = divmod(a, b)
-        minutes, seconds = divmod(char_count, 1020)
-        return (minutes, seconds)
+        car=caracter_count/17
+        minutes, seconds = divmod(car,60)
+        return (int(minutes), int(seconds))
 
 class Scene(object):
     def __init__(self, number, in_out, place, moment, time, page, characters=None, continuity=None, text=""):
