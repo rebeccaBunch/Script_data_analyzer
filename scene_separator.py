@@ -1,5 +1,6 @@
 
 from sly import Lexer, Parser
+import re
 
 def read_scene():
     # Abre el archivo en modo lectura
@@ -119,75 +120,87 @@ class Scene_separator(object):
   
     def __call__(self, script_text_per_page):
         scenes_headings = []
-        past_line=""
+        past_line=["",0.0]
         index_scene=1
-        text=""
+        text=["",0.0]
         old_result=None
         last_page=None
-        for page in script_text_per_page.keys():
-            # last_page=page
+
+        # Obtener las llaves como una lista
+        pages = list(script_text_per_page.keys())
+
+        for i, page in enumerate(pages):
+            is_last_page = (i == len(pages) - 1)
             page_content = script_text_per_page[page]
-            page_content = page_content.split('\n')
+            page_content = re.split(r'\n+',page_content)
+            second_per_line=60/len(page_content)
             for line in page_content:
                 a = line.strip()
                 result = self.parser.parse(self.lexer.tokenize(a))
                 if old_result is None:
                     if result is None:
-                        past_line+=" "
-                        result2= self.parser.parse(self.lexer.tokenize(past_line+a))
+                        past_line[0]+=" "
+                        result2= self.parser.parse(self.lexer.tokenize(past_line[0]+a))
                         if result2 is None:
-                            past_line=line.strip()
+                            if is_last_page:
+                                past_line=[line.strip(),len(line)/17]
+                            else:
+                                past_line=[line.strip(),second_per_line]
                         else:
                             old_result=result2
-                            past_line=""
+                            past_line=["",0.0]
                             last_page=page
                     else:
                         old_result=result
-                        past_line=""
+                        past_line=["",0.0]
                         last_page=page
                     continue
                 elif result is None:
-                    past_line+=" "
-                    result3 = self.parser.parse(self.lexer.tokenize(past_line+a))
+                    past_line[0]+=" "
+                    result3 = self.parser.parse(self.lexer.tokenize(past_line[0]+a))
                     if result3 is None:
-                        text+= "\n"+ past_line.strip()
-                        past_line=line.strip()
+                        text[0]+= "\n"+ past_line[0].strip()
+                        text[1]+=past_line[1]
+                        if is_last_page:
+                            past_line=[line.strip(),len(line)/17]
+                        else:
+                            past_line=[line.strip(),second_per_line]
                     else:
                         if old_result[1] is None:
-                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
+                            scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page,text=text[0].strip()))
                         else:
-                            scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
-                        past_line=""
-                        text=""
+                            scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page,text=text[0].strip()))
+                        past_line=["",0.0]
+                        text=["",0.0]
                         old_result=result3
                         index_scene+=1
                         last_page=page
                 else:
-                    text+= "\n"+ past_line.strip()
+                    text[0]+= "\n"+ past_line[0].strip()
+                    text[1]+=past_line[1]
                     if old_result[1] is None:
-                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
+                        scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page,text=text[0].strip()))
                     else:
-                        scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page, text=text.strip()))
-                    past_line=""
-                    text=""
+                        scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page, text=text[0].strip()))
+                    past_line=["",0.0]
+                    text=["",0.0]
                     old_result=result
                     index_scene+=1
                     last_page=page
         if old_result != None:
-            text+= "\n"+past_line.strip()
+            text[0]+= "\n"+past_line[0].strip()
+            text[1]+=past_line[1]
             if old_result[1] is None:
-                scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
+                scenes_headings.append(Scene(index_scene,old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page,text=text[0].strip()))
             else:
-                scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(len(text)),last_page,text=text.strip()))
+                scenes_headings.append(Scene(int(old_result[1]),old_result[2],old_result[3],old_result[4],self.calculate_time(text[1]),last_page,text=text[0].strip()))
 
         return scenes_headings
     
 
     @staticmethod
-    def calculate_time(caracter_count):
-        # quotient, remainder = divmod(a, b)
-        car=caracter_count/17
-        minutes, seconds = divmod(car,60)
+    def calculate_time(sec):
+        minutes, seconds = divmod(sec,60)
         return (int(minutes), int(seconds))
 
 class Scene(object):
