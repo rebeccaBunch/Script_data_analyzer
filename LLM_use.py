@@ -5,7 +5,6 @@ from google.api_core.exceptions import ResourceExhausted
 from dotenv import load_dotenv
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-from LLM_SPARK import CharacterExtractor_Spark
 from scene_separator import Scene
 
 scene_amount_per_query = 14

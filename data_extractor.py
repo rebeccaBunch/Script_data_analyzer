@@ -14,7 +14,6 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfparser import PDFParser
 
-from LLM_SPARK import CharacterExtractor_Spark
 from LLM_use import CharacterExtractor_Gemini
 from scene_separator import Scene_separator
 
