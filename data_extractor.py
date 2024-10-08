@@ -97,11 +97,11 @@ def save_scenes_to_excel_with_characters(scenes, script_file_name, all_character
         for key, value in scene.characters.items():
             characters_reasons += key + ": " + value.context + ", "
         scene_data.append(characters_reasons)
-        
+        scene_data.append(scene.note)
         data[f'Escena {i+1}'] = scene_data
 
     # Crea un DataFrame de pandas a partir del diccionario
-    index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE']
+    index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE', 'NOTAS']
     df = pd.DataFrame(data, index=index)
 
     # Guarda el DataFrame en un archivo Excel en memoria
@@ -132,7 +132,7 @@ def save_scenes_to_excel_with_characters_no_buffer(scenes, script_file_name, all
         if scene.continuity["following"]:
             following = ", ".join(scene.continuity["following"])
         continuity =  previous + " - " + following
-        scene_data = [scene.number, scene.in_out, scene.place, scene.moment, scene.time, scene.page, continuity, scene.note]
+        scene_data = [scene.number, scene.in_out, scene.place, scene.moment, scene.time, scene.page, continuity]
         
         # Añade una 'X' para los personajes que están en la escena
         for character in all_characters:
@@ -146,11 +146,11 @@ def save_scenes_to_excel_with_characters_no_buffer(scenes, script_file_name, all
         for key, value in scene.characters.items():
             characters_reasons += key + ": " + value.context + ", "
         scene_data.append(characters_reasons)
-        
+        scene_data.append(scene.note)
         data[f'Escena {i+1}'] = scene_data
 
     # Crea un DataFrame de pandas a partir del diccionario
-    index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD', 'NOTA'] + list(all_characters) + ['RAZONES POR PERSONAJE']
+    index = ['ESC #', 'INT/EXT', 'LUGAR', 'MOMENTO', 'DURACION DE ESCENA', 'PAGINA EN GUION', 'CONTINUIDAD'] + list(all_characters) + ['RAZONES POR PERSONAJE', 'NOTAS']
     df = pd.DataFrame(data, index=index)
 
     # Define la ruta del directorio
