@@ -82,7 +82,7 @@ def process_script_file(uploaded_file, informe):
     pages_text = pdf_extract_text_per_page(BytesIO(file_content))
     sep = Scene_separator()
     scenes = sep(pages_text)
-    if informe_content:
+    if informe:
         informe_content = informe.read()
         time_per_scene = pdf_extract_text_per_page(BytesIO(informe_content))
         times = get_time_per_scene_from_file(time_per_scene)
