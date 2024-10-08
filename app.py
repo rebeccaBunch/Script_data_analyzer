@@ -68,7 +68,10 @@ def get_time_per_scene_from_file(b):
 def process_script_file(uploaded_file, informe):
 
     # Check if the uploaded file is a PDF
-    if uploaded_file.type != "application/pdf" or (informe.type != "application/pdf" and informe):
+    if uploaded_file.type != "application/pdf" :
+        st.error("El archivo no es un PDF y no puede ser analizado.")
+        return None, None
+    if informe and informe.type != "application/pdf":
         st.error("El archivo no es un PDF y no puede ser analizado.")
         return None, None
     # Read the uploaded file content
