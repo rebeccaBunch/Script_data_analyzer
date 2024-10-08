@@ -5,9 +5,73 @@ from google.api_core.exceptions import ResourceExhausted
 from dotenv import load_dotenv
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
+from LLM_SPARK import CharacterExtractor_Spark
 from scene_separator import Scene
 
 scene_amount_per_query = 14
+
+instructions_characters_Chat_gpt = """Analiza un guion y devuelve los nombres de los personajes que aparecen físicamente en cada escena. Un personaje está presente si realiza una acción que requiere estar físicamente, es mencionado como sujeto de una oración, o habla en la escena (indicada con su nombre completamente en mayúsculas y con diálogo debajo). Ignora personajes solo oídos o mencionados sin aparecer físicamente, en un diálogo si el personaje solo se oye se pone (O.S), en cuyo caso el personaje no aparece físicamente. Si se menciona un grupo, intenta inferir a quiénes se refiere según lo visto previamente. Excluye objetos, animales y palabras que se refieran a grupos cuyos integrantes puedas identificar, a menos que hablen. Solo considera lo que está entre 'Número de escena' y 'Fin de escena'.
+                            Ejemplos de conversación:
+                            Prompt 1:Número de escena: 1 Interior/Exterior: Int Lugar: Casa de abuela Momento: Día Contenido: Hugo y Simone de pie con los maletines alrededor. Están en la misma disposición espacial que en la escena anterior.
+                            Miran el auto de sus padres que se aleja por el terraplén. Detrás de ellos, la casa de la abuela.
+                            Por el entorno todo indica que es un pueblo de campo como Canasí o Jaruco.
+                            EVA (70), la abuela de los niños, los observa parada desde el portal de la casa. La señora es de rostro duro. Viste de manera sobria y tradicional.
+                            Eva pronuncia el nombre de su nieta tal cual se escribe: «Simone».
+                            EVA
+                            (grita como una generala)
+                            ¡Simone, Hugo, entren ya!
+                            Hugo habla sin voltearse.
+                            HUGO
+                            (para sí)
+                            Y así comienza. Fin de escena
+
+                            Respuesta que debes dar en este caso:
+                            Escena 1: Hugo - de pie | Simone - de pie | Eva - observa
+
+                            Prompt 2:
+                            Número de escena: 1 Interior/Exterior: Ext Lugar: Portal de Juana Momento: Medianoche Contenido: Juana, Lucía y Tabitha están sentadas en el portal.
+                            JUANA
+                            (pregunta al aire)
+                            Y entonces qué hago?
+                            TABITHA
+                            (para sí) 
+                            Ojalá supiera
+                            Pasa un señor por la calle al que no vemos y las saluda.
+                            SEÑOR (O.S)
+                            Hola, familia
+                            LAS TRES
+                            Hola. Fin de escena
+                            Respuesta que debes dar en este caso:
+                            Escena 1: Juana - está sentada | Tabitha - está sentada | Lucía - está sentada
+                            **Fin de ejemplo**
+                            Nota: El señor que saluda se dice explícitamente en la escena que no se ve y le ponen (O.S), por lo que no se incluye como personaje. Cuando hablan las tres se refiere al grupo de las tres mujeres mencionadas antes porque en ninguna parte de la escena se menciona otro grupo como las tres, lyego deben ser Juana, Tabitha y Lucía. Por tanto las tres no se incluye como personaje nuevo.                           
+                            Es muy importante que todo personaje que hable en la escena sin que sea (O.S) se considere que aparece físicamente, a menos que esté hablando por teléfono o se especifique que no se ve.
+                            If a character has a dialogue without the (O.S) and the dialogue is not through a telephone, the character appears on the scene. If such character is said not to be seen, then it is not a character of the scene. 
+                            """
+
+system_instructions_continuity_Chat_gpt = """Hay continuidad entre dos escenas si un personaje en la segunda realiza una acción que ocurre justo después de la primera, lo que implica que no debe haber cambiado de apariencia (ropa, peinado). La continuidad se analiza por personajes. Si un personaje aparece en varias escenas consecutivas sin oportunidad de cambiar su aspecto, hay continuidad entre ellas. El conjunto de escenas anteriores solo incluye aquellas con un número menor, y el de escenas siguientes, solo las de número mayor.
+                                    Ejemplo de conversación:
+                                    Prompt 1:Escena 1:Personaje 1 escribe en una nota y la pasa por debajo de la puerta de un apartamento.
+                                    Escena 2:Personaje 2 ve una nota bajo su puerta y la lee. Luego se sienta frente al televisor a jugar un videojuego.
+                                    Escena 3:Personaje 1 camina por las calles de regreso a su casa preguntándose si personaje 1 habrá recibido la nota.
+                                    Escena 4:Personaje 3 entra en su apartamento y ve a personaje 2 sentado frente al televisor con un videojuego andando.
+                                    Escena 5:Personaje 1 está en la escuela al día siguiente y se pone en fila para el matutino.
+                                    Escena 6:Personaje 2 está distraído en el aula.
+                                    Escena 7:Durante el receso el personaje 2 va al aula del personaje 1 y le agradece por la nota.
+                                    Respuesta que debes dar:
+                                    Continuidad:
+                                    Escena 1: Personaje 1 = X1-3 (caminar de regreso a su casa ocurre poco después de escribir la nota)
+                                    Escena 2: Personaje 2 = X1-4(porque personaje 2 sigue frente al televisor, es decir, no se debe haber cambiado de ropa)
+                                    Escena 3: Personaje 1 = 1-X2
+                                    Escena 4: Personaje2 = 2-X2 | Personaje 3 = X1-X2
+                                    Escena 5: Personaje 1 = X1(porque al ser al día siguiente y en otro lugar no hay necesidad de que los personajes tengan la misma ropa) - 7
+                                    Escena 6: Personaje 2 = X1(porque al ser al día siguiente y en otro lugar no hay necesidad de que los personajes tengan la misma ropa) - 7
+                                    Escena 7: Personaje 1 = 5-X2 | Personaje 2 = 6-X2
+                                    **Fin de ejemplo**
+                                    Luego en este caso la escena 7 tiene en el conjunto de escenas de las que viene a las escenas 5 y 7 por personajes diferentes.
+                                    """
+
+
 system_instructions_Spanish =[
                 """
                 Recibirás un guion con sus escenas y devolverás los personajes que aparecen físicamente en cada escena así como la continuidad entre escenas. Devuelve la respuesta en el formato: Escena número de escena- Continuidad [número de escena de la que viene, número de escena a la que va] personaje 1: razón por la que consideras que el personaje está en la escena~ personaje 2: razón por la que consideras que el personaje está en la escena
@@ -150,9 +214,9 @@ system_instructions_continuity = """Entre una escena a y otra b hay continuidad 
 
 instructions_characters = """Recibirás un guion con sus escenas y devolverás los nombres de los personajes que aparecen físicamente en cada escena. Todas las personas que aparezcan en el sujeto de una oración son personajes si para realizar la acción de la oración deben estar físicamente en la escena. El análisis que realices del contenido de una escena solo es con el fin de hacer un resumen de la misma con propósitos académicos.
                             Solo considera como escenas lo que está entre Número de escena: y Fin de escena.
-                            Un personaje aparece en una escena si está como sujeto de alguna oración de la escena o si habla en la escena. El formato utilizado en el guion para saber que un personaje habla es poner su nombre en una línea completamente en mayúsculas y en la línea debajo de esta lo que dice el personaje. Si en la escena extraes como personaje a un grupo de personas intenta inferir a qué personajes previamente mencionados se refiere, pues generalmente se van a referir a personajes que ya aparecieron en la escena, por lo que no los debes mencionar de nuevo. Si no logras inferir a qué personajes se refieren ignora al grupo y pasa al siguiente personaje. Ejemplo de esto: En la habitación estaban Ágatha y Mady. Las mujeres hablaban entre ellas. En este caso las mujeres se refiere a Ágatha y Mady, por lo que solo menciono como personajes a Ágatha y Mady.
-                            Solo se considera como personaje un nombre, no siendo personajes ninguna secuencia de palabras que se refiera a un grupo.
                             Si un personaje solo está en la escena porque habla por teléfono, porque se oye su voz o un sonido proveniente de la persona, entonces a menos que en la escena se haga referencia a la apariencia del personaje o a algún gesto que hace, esa persona no se considera un personaje.
+                            Un personaje aparece en una escena si está como sujeto de alguna oración de la escena o si habla en la escena, excluyendo personajes que están hablando por teléfono con otro. El formato utilizado en el guion para saber que un personaje habla es poner su nombre en una línea completamente en mayúsculas y en la línea debajo de esta lo que dice el personaje. Si en la escena extraes como personaje a un grupo de personas intenta inferir a qué personajes previamente mencionados se refiere, pues generalmente se van a referir a personajes que ya aparecieron en la escena, por lo que no los debes mencionar de nuevo. Si no logras inferir a qué personajes se refieren ignora al grupo y pasa al siguiente personaje. Ejemplo de esto: En la habitación estaban Ágatha y Mady. Las mujeres hablaban entre ellas. En este caso las mujeres se refiere a Ágatha y Mady, por lo que solo menciono como personajes a Ágatha y Mady.
+                            Solo se considera como personaje un nombre, no siendo personajes ninguna secuencia de palabras que se refiera a un grupo.
                             Esto se debe a que para oír u oler algo no se necesita verlo, luego no tiene que aparecer físicamente en la escena. Es muy importante que todo personaje que hable en una escena fuera de una conversación por teléfono se incluya como personaje.
                             Si un personaje de la escena ejecuta una acción sobre otro personaje y para esta acción necesita ver al otro personaje entonces este otro personaje está en la escena también. 
                             En español los verbos pueden estar en varios lugares de una oración. Por ejemplo: "Cantaron Pedro y Cynthia le canción del matutino."
@@ -210,6 +274,7 @@ instructions_characters = """Recibirás un guion con sus escenas y devolverás l
                             La respuesta que me debes dar en este caso es:
                             Escena 1: Alicia - camina por el bosque| Liebre - peina a reina | reina de corazones - es peinada por liebre
                             Nota: El gato de Cheshire no se incluye porque Alicia solo lo oye, luego no hay mención de que se vea en la escena. La reina se incluye porque la liebre que es un personaje está peinándola, acción que requiere ver a la reina. Si la acción fuera hablar por teléfono por ejemplo no sería necesario incluir a la reina en la escena.
+                            Si un personaje solo está en la escena porque habla por teléfono, porque se oye su voz o un sonido proveniente de la persona, entonces a menos que en la escena se haga referencia a la apariencia del personaje o a algún gesto que hace, esa persona no se considera un personaje.
                             """
 
 class Character(object):
@@ -252,22 +317,26 @@ class CharacterExtractor:
 
 
 
-    def send_message(self, text, retry_count=0):
+    def send_message(self, instructions, text, retry_count=0):
         # Get the characters from Gemini AI
         try:
             response = self.chat.send_message(text)
             return response.text.strip() if response else None
-        except genai.types.BlockedPromptException as e:
-            # Handle exception if the request is blocked
-            print(f"The prompt was blocked: {e}")
-            return None
-        except ResourceExhausted as e:
+        # except genai.types.BlockedPromptException as e:
+        #     # Handle exception if the request is blocked
+        #     print(f"The prompt was blocked by Gemini: {e}")
+        #     response = None
+        #     for i in [1,2,3]:
+        #         response = self.chat.send_message(text)
+        #     return self.spark_model.send_message(instructions, text)
+        except:
+            print(f"The prompt was blocked by Gemini")
             # Retry if resource limit is reached
             if retry_count < MAX_RETRIES:
                 time.sleep(2 ** retry_count)  # Implement exponential backoff
-                return self.send_message(text, retry_count + 1)
+                return self.send_message(instructions, text, retry_count + 1)
             else:
-                raise e
+                return None
 
 
     def get_responses(self, text,query_amount,instructions,seconds_to_wait):
@@ -275,18 +344,20 @@ class CharacterExtractor:
         while not responses:
             for _ in range(query_amount):
                 self.start_new_chat(instructions)
-                responses.append(self.send_message(text))
+                responses.append(self.send_message(instructions,text,3))
                 time.sleep(seconds_to_wait)
         return responses
         
-    def process_scenes (self, text, query_amount, scenes,last_scene):
-        responses = self.get_responses(text, query_amount,instructions_characters,0)
-        bad_responses = self.aggregate_results_to_scene_characters(responses, scenes, last_scene)
+    def process_scenes (self, text, query_amount, scenes,last_scene,first_scene):
+        print(f"Entered process_scenes with query amount: {query_amount} first_scene: {first_scene} and last scene: {last_scene}")
+        responses = self.get_responses(text, query_amount,instructions_characters_Chat_gpt,0.5)
+        bad_responses = self.aggregate_results_to_scene_characters(responses, scenes, last_scene,first_scene)
         if bad_responses:
-            self.process_scenes(text, bad_responses, scenes, last_scene)
+            self.process_scenes(text, bad_responses, scenes, last_scene,first_scene)
 
 
     def filter_best_answers(self,scenes,last_scene, query_amount,script_characters):
+        print(f"Entered filter best answers with query amount: {query_amount} and last scene: {last_scene}")
         current_scene = last_scene - scene_amount_per_query
         remainder = divmod(last_scene, scene_amount_per_query)[1]
         if remainder:
@@ -300,46 +371,22 @@ class CharacterExtractor:
 
     def extract_characters(self, scenes, query_amount):
         script_characters = set()
-        # Extract characters from the text using Gemini AI and return them
-        # correct_answers_per_scene = [0 for _ in range(len(scenes))]
-        # for scene in scenes:
-        #     scene.characters = {}
-        # t = 0
-        # for i in range(10):
-        #     for scene in scenes:
-        #         t+=1
-        #         response = self.send_message(f'Devuelve los personajes que aparecen en esta escena de un guion. La respuesta debe ser por cada personaje poner en una misma línea su nombre seguido de : y un resumen de las acciones que realiza en la escena y su estado de ánimo. Cada personaje va en una línea diferente sin líneas vacías entre ellos. Tu respuesta solo debe contar con lo especificado en este mensaje. Escena {scene.number} {scene.in_out} {scene.place} {scene.moment} Contenido de la escena según guion: {scene.text}')
-        #         if response:
-        #             characters = response.split('\n')
-        #             for character_info in characters:
-        #                 character_info = character_info.split(':')
-        #                 current_amount = 1
-        #                 if character_info[0].strip() in scene.characters.keys():
-        #                     scene.characters[character_info[0].strip()].count += 1
-        #                     current_amount = scene.characters[character_info[0].strip()].count
-        #                 else:
-        #                     scene.characters[character_info[0].strip()] = Character(1,character_info[1].strip())
-        #                 if correct_answers_per_scene[scene.number - 1] < current_amount:
-        #                     correct_answers_per_scene[scene.number - 1] = current_amount
-        #                 print(t)
-        # for scene in scenes:
-        #     filtered_dict = {key: value for key, value in scene.character.items() if value.count >= correct_answers_per_scene[scene.number - 1]}
-        #     scene.characters = filtered_dict
         i = 0
         count = 0
         while i < len(scenes):
             count+=1
-            text = F"Devuelve los personajes que aparecen las escenas de un guion. T envío las escenas de la {i} hasta la {count*scene_amount_per_query}, son {scene_amount_per_query} escenas. Cada escena empieza con número de escena, interior o exterior, lugar y momento con el contenido de la escena del cual debes extraer los personajes. La respuesta debe ser por cada personaje poner en una misma línea su nombre seguido de : y una razón que para ti justifique su presencia en la escena. Es importante que no escribas los nombres de los mismos personajes más de una vez en la misma escena, si ves algo que haga referencia a los personajes como un grupo tampoco lo debes escribir como un nuevo personaje. Tu respuesta solo debe contar con lo especificado en este mensaje. Guion:"
+            text = F"Devuelve los personajes que aparecen las escenas de un guion. T envío las escenas de la {i} hasta la {count*scene_amount_per_query}, son {scene_amount_per_query} escenas. Cada escena empieza con número de escena, interior o exterior, lugar y momento con el contenido de la escena del cual debes extraer los personajes. La respuesta debe ser por cada personaje poner en una misma línea su nombre seguido de : y una razón que para ti justifique su presencia en la escena (si la razón incluye contenido sensible no la escribas, solo pon nombre del personaje). Es importante que no escribas los nombres de los mismos personajes más de una vez en la misma escena, si ves algo que haga referencia a los personajes como un grupo tampoco lo debes escribir como un nuevo personaje. Tu respuesta solo debe contar con lo especificado en este mensaje. Guion:"
+            first_scene = i + 1
             while i<count*scene_amount_per_query and (i < len(scenes)):
                 text += f'Número de escena: {scenes[i].number} Interior/Exterior: {scenes[i].in_out} Lugar: {scenes[i].place} Momento: {scenes[i].moment} Contenido: {scenes[i].text} Fin de escena {scenes[i].number}\n'
                 i+=1
-            self.process_scenes(text, query_amount,scenes, i)
+            self.process_scenes(text, query_amount,scenes, i, first_scene)
             self.filter_best_answers(scenes, i,query_amount,script_characters)# actualiza personajes de escenas y del guion
 
         return script_characters
 
 
-    def aggregate_results_to_scene_characters(self, responses, scenes, last_scene):
+    def aggregate_results_to_scene_characters(self, responses, scenes, last_scene, first_scene):
 
         # Process each response
         # if scene_number exceeds the last_scene then the model allucinated, therefore that response must be asked for again
@@ -352,7 +399,7 @@ class CharacterExtractor:
                     if line.startswith('Escena'):
                         parts = line.split(': ')
                         scene_number = int(parts[0].split()[1])
-                        if(scene_number > last_scene):
+                        if(scene_number > last_scene) or (scene_number < first_scene):
                             bad_responses+=1
                             response_is_bad = 1
                             break
@@ -376,25 +423,43 @@ class CharacterExtractor:
                             break
         return bad_responses
 
+    def add_notes(self, scenes, scene_blocks_size = 20):
+        instructions = "Un estudiante ha extraído los personajes que aparecen en las escenas de un guión. Necesito que me des un resumen de las escenas y revises si el estudiante extrajo personajes erróneamente. A continuación te enviaré cada escena (1 sola escena por mensaje) con los personajes que extrajo el muchacho. Debes resumir las acciones de la escena y luego comprobar si la respuesta del estudiante tiene algún error."
+            
+        self.start_new_chat(instructions)
+        i = 0
+        while i < len(scenes):
+            characters = ""
+            for key, value in scenes[i].characters.items():
+                characters += key + ", "
+            text = f'Escena {scenes[i].number} Personajes que extrajo el estudiante:{characters} Contenido de escena: {scenes[i].text}\n'
+            scenes[i].note = self.send_message(instructions, text,3)
+            i+=1
+
+
     def set_continuity(self, scenes, query_amount):
         i = 0
         count = 0
         while i < len(scenes):
             count+=1
             text = "Por cada escena del guion que te mandaré a continuación devuelve la continuidad entre escenas.La respuesta debe ser por cada escena escribir por cada personaje que apararece en ella de qué escena viene y a qué escena va (en caso de no saber poner X1 o X2 si es la escena de la que viene o a la que se va respectivamente). La continuidad se refiere a la continuidad de vestuario y maquillaje de los actores que interpretarán al personaje, luego una escena va hacia otra si el personaje tiene que mantener el mismo aspecto entre ambas. La respuesta debe ser exactamente en el formato: Escena número de escena: Personaje1 = Escena de la que viene - Escena a la que va | Personaje2 = Escena de la que viene - Escena a la que va . No escribas nada adicional en tu respuesta excepto por lo especificado en el formato."
+            first_scene = i + 1 
             while i<count*scene_amount_per_query and (i < len(scenes)):
                 text += f'Escena {scenes[i].number} {scenes[i].in_out} {scenes[i].place} {scenes[i].moment} Personajes:{scenes[i].characters} Contenido: {scenes[i].text}\n'
                 i+=1
-            self.process_continuity(query_amount,text,scenes,i)
+            self.process_continuity(query_amount,text,scenes,i,first_scene)
             self.filter_best_continuity_answers(i, query_amount,scenes)
 
-    def process_continuity(self, query_amount, text, scenes,last_scene):
-        responses = self.get_responses(text,query_amount,system_instructions_continuity,10)
-        bad_responses = self.aggregate_results_to_scene_continuity(responses,scenes,last_scene)
+    def process_continuity(self, query_amount, text, scenes,last_scene,first_scene):
+        if last_scene == 60 or last_scene == "60":
+            print("")
+        print(f"Entered process_continuity with query amount: {query_amount} first scene: {first_scene} and last scene: {last_scene}")
+        responses = self.get_responses(text,query_amount,system_instructions_continuity_Chat_gpt,4)
+        bad_responses = self.aggregate_results_to_scene_continuity(responses,scenes,last_scene,first_scene)
         if bad_responses:
-            self.process_continuity(bad_responses,text,scenes,last_scene)
+            self.process_continuity(bad_responses,text,scenes,last_scene,first_scene)
     
-    def aggregate_results_to_scene_continuity(self, responses, scenes, last_scene):
+    def aggregate_results_to_scene_continuity(self, responses, scenes, last_scene, first_scene):
         # Process each response
         bad_responses = 0
         for response in responses:
@@ -405,7 +470,7 @@ class CharacterExtractor:
                         continuity_per_character = set()
                         parts = line.split(': ')
                         scene_number = int(parts[0].split()[1])
-                        if(scene_number > last_scene):
+                        if(scene_number > last_scene) or (scene_number < first_scene):
                             bad_responses+=1
                             response_is_bad = 1
                             break
@@ -431,6 +496,7 @@ class CharacterExtractor:
                                 scenes[scene_number - 1].continuity[element] = 1
     
     def filter_best_continuity_answers(self,last_scene, query_amount, scenes):
+        print(f"Entered filter_best_continuity_answers with query amount: {query_amount} and last scene: {last_scene}")
         index = last_scene - scene_amount_per_query
         remainder = divmod(last_scene, scene_amount_per_query)[1]
         if remainder:
@@ -455,11 +521,11 @@ class CharacterExtractor:
 
 
 
-if __name__ == "__main__":
-    extractor = CharacterExtractor()
-    text = ""
-    for scene in scenes:
-        text += f'Escena {scene.number}  {scene.in_out} {scene.moment} Contenido: {scene.text}\n'
-    script_characters = extractor.set_continuity(scenes, 10)
-    print("Ok")
+# if __name__ == "__main__":
+#     extractor = CharacterExtractor()
+#     text = ""
+#     for scene in scenes:
+#         text += f'Escena {scene.number}  {scene.in_out} {scene.moment} Contenido: {scene.text}\n'
+#     script_characters = extractor.set_continuity(scenes, 10)
+#     print("Ok")
 

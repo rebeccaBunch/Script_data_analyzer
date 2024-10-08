@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-from LLM_use import CharacterExtractor
+from LLM_use import CharacterExtractor_Gemini
 from data_extractor import pdf_extract_text_per_page, save_scenes_to_excel, save_scenes_to_excel_with_characters
 from scene_separator import Scene_separator
 
@@ -65,12 +65,12 @@ def process_script_file(uploaded_file):
     scenes = sep(pages_text)
     try:
             key = st.secrets["api_keys"]["gemini_api_key1"]
-            extractor = CharacterExtractor(key)
+            extractor = CharacterExtractor_Gemini(key)
             script_characters = extractor.extract_characters(scenes, 11)
             extractor.set_continuity(scenes, 11)
     except:
                 key = st.secrets["api_keys"]["gemini_api_key2"]
-                extractor = CharacterExtractor(key)
+                extractor = CharacterExtractor_Gemini(key)
                 script_characters = extractor.extract_characters(scenes, 11)
                 extractor.set_continuity(scenes, 11)
 
