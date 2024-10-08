@@ -287,7 +287,7 @@ class Character(object):
 
 MAX_RETRIES = 5  # Maximum number of attempts for the Gemini API
 
-class CharacterExtractor:
+class CharacterExtractor_Gemini:
     def __init__(self, key):
         # Load environment variables from the .env file
         # load_dotenv(config_file)
