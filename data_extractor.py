@@ -4,6 +4,7 @@
 # print(page.extract_text())
 from io import StringIO
 import os
+import re
 import time
 import pandas as pd
 
@@ -165,9 +166,23 @@ def save_scenes_to_excel_with_characters_no_buffer(scenes, script_file_name, all
     # Guarda el DataFrame en un archivo Excel en el directorio 'encabezados'
     df.to_excel(os.path.join(dir_path, excel_name))
 
-# script_file_name = "Abuelas y Mazmorras - V3.1.pdf"
+# script_file_name = "Informe.pdf"
 # start_time = time.time()
 # pages_text = pdf_extract_text_per_page(os.path.join('guiones', script_file_name))
+# def extract_durations(text):
+#     # Regular expression to find durations in the format a:b
+#     duration_pattern = re.compile(r'\b(\d+:\d+)\b')
+#     durations = duration_pattern.findall(text)
+#     return durations
+# dur = []
+# for i in pages_text:
+#     tmp = extract_durations(pages_text[i])
+#     for a in tmp:
+#         dur.append(a)
+
+# print(pages_text[0])
+
+a = 5
 # sep = Scene_separator()
 # scenes = sep(pages_text)
 # extractor = CharacterExtractor_Gemini()

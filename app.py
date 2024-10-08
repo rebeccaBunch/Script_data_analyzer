@@ -1,5 +1,6 @@
 # Importa las bibliotecas necesarias
 import os
+import re
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -49,20 +50,42 @@ from scene_separator import Scene_separator
             
 #     save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters)
 
+def extract_durations(text):
+    # Regular expression to find durations in the format a:b
+    duration_pattern = re.compile(r'\b(\d+:\d+)\b')
+    durations = duration_pattern.findall(text)
+    return durations
 
-def process_script_file(uploaded_file):
+def get_time_per_scene_from_file(b):
+    dur = []
+    for i in b:
+        tmp = extract_durations(b[i])
+        for a in tmp:
+            dur.append(a)
+    dur.pop(0)
+    return dur
+
+def process_script_file(uploaded_file, informe):
 
     # Check if the uploaded file is a PDF
-    if uploaded_file.type != "application/pdf":
+    if uploaded_file.type != "application/pdf" or (informe.type != "application/pdf" and informe):
         st.error("El archivo no es un PDF y no puede ser analizado.")
         return None, None
     # Read the uploaded file content
     file_content = uploaded_file.read()
+
     
     # Process the file content
     pages_text = pdf_extract_text_per_page(BytesIO(file_content))
     sep = Scene_separator()
     scenes = sep(pages_text)
+    if informe_content:
+        informe_content = informe.read()
+        time_per_scene = pdf_extract_text_per_page(BytesIO(informe_content))
+        times = get_time_per_scene_from_file(time_per_scene)
+        for i, scene in enumerate(scenes):
+            scene.time = times[i]
+
     try:
             key = st.secrets["api_keys"]["gemini_api_key1"]
             extractor = CharacterExtractor_Gemini(key)
@@ -78,19 +101,42 @@ def process_script_file(uploaded_file):
     # Save the scenes to an Excel file in memory
     excel_buffer = BytesIO()
     script_file_name = uploaded_file.name.rsplit('.', 1)[0]  # Remove the .pdf extension
+    extractor.add_notes(scenes,20)
     save_scenes_to_excel_with_characters(scenes, script_file_name, script_characters, excel_buffer)
     
     return excel_buffer.getvalue(), script_file_name + '.xlsx'
 
+def test(uploaded_file, informe):
+
+    # Check if the uploaded file is a PDF
+    if uploaded_file.type != "application/pdf" or (informe.type != "application/pdf" and informe):
+        st.error("El archivo no es un PDF y no puede ser analizado.")
+        return None, None
+    # Read the uploaded file content
+    file_content = uploaded_file.read()
+    informe_content = informe.read()
+    time_per_scene = pdf_extract_text_per_page(BytesIO(informe_content))
+    times = get_time_per_scene_from_file(time_per_scene)
+    for i in times:
+         print(i)
+
 st.title("Script Analysis App")
+st.session_state.script = None 
+st.session_state.informe=None
+# File uploaders
+uploaded_script_file = st.file_uploader("Seleccione un guion", type="pdf")
+if uploaded_script_file:
+    st.session_state.script = uploaded_script_file
+uploaded_informe_file = st.file_uploader("Seleccione archivo con duración de escenas", type="pdf")
+if uploaded_informe_file:
+    st.session_state.informe = uploaded_informe_file
+st.session_state.start = st.button("Procesar sin informe")
 
-# File uploader
-uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+if st.session_state.script is not None and (st.session_state.informe is not None or st.session_state.start):
+    # Process the uploaded files
+    excel_data, excel_name = process_script_file(st.session_state.script, st.session_state.informe if st.session_state.informe else None)
+    # test(st.session_state.script, st.session_state.informe if st.session_state.informe else None)
 
-if uploaded_file is not None:
-    # Process the uploaded file
-    excel_data, excel_name = process_script_file(uploaded_file)
-    
     # Provide a download button for the generated Excel file
     st.download_button(
         label="Download Processed Excel File",
@@ -98,6 +144,7 @@ if uploaded_file is not None:
         file_name=excel_name,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
